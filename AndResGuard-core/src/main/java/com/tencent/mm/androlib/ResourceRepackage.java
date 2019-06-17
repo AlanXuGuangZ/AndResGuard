@@ -3,6 +3,7 @@ package com.tencent.mm.androlib;
 import com.tencent.mm.util.FileOperation;
 import com.tencent.mm.util.TypedValue;
 import com.tencent.mm.util.Utils;
+import com.tencent.mm.resourceproguard.Configuration;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -21,11 +22,26 @@ public class ResourceRepackage {
   private File mStoredOutPutDir;
   private String mApkName;
   private File mOutDir;
+  public ArrayList<String> mSoWhiteList;
+  public boolean mUseSoWhiteList;
+  public ArrayList<String> mExcludeSoList;
 
   public ResourceRepackage(String zipalignPath, String zipPath, File signedFile) {
     this.zipalignPath = zipalignPath;
     this.sevenZipPath = zipPath;
     mSignedApk = signedFile;
+  }
+
+  public ResourceRepackage(String zipalignPath, String zipPath, File signedFile, Configuration config) {
+    this.zipalignPath = zipalignPath;
+    this.sevenZipPath = zipPath;
+    mSignedApk = signedFile;
+    if (config.mSoWhiteList != null && config.mSoWhiteList.size() != 0){
+        mSoWhiteList = config.mSoWhiteList;
+    }else {
+        mSoWhiteList = null;
+    }
+    mUseSoWhiteList = config.mUseSoWhiteList;
   }
 
   public void setOutDir(File outDir) {
@@ -36,6 +52,18 @@ public class ResourceRepackage {
     insureFileName();
 
     repackageWith7z();
+
+    if (mUseSoWhiteList){
+      System.out.printf("\nmSoWhiteList:\n");
+      for (String white:mSoWhiteList) {
+        System.out.printf(white+"\n");
+      }
+      System.out.printf("\nmExcludeSoList:\n");
+      for (String so:mExcludeSoList){
+        System.out.printf(so+"\n");
+      }
+    }
+
     alignApk();
     deleteUnusedFiles();
   }
@@ -88,6 +116,11 @@ public class ResourceRepackage {
     //首先一次性生成一个全部都是压缩的安装包
     generalRaw7zip();
     ArrayList<String> storedFiles = new ArrayList<>();
+
+    if (mUseSoWhiteList) {
+        mExcludeSoList = new ArrayList<String>();
+    }
+
     //对于不压缩的要update回去
     for (String name : compressData.keySet()) {
       File file = new File(m7zipOutPutDir.getAbsolutePath(), name);
@@ -97,6 +130,21 @@ public class ResourceRepackage {
       int method = compressData.get(name);
       if (method == TypedValue.ZIP_STORED) {
         storedFiles.add(name);
+      }else if (mUseSoWhiteList){
+        for (String white:mSoWhiteList){
+
+          if (name.endsWith(".so")){
+            String fullWhite = white.replace(".", "/");
+            fullWhite += ".so";
+            if ((white.contains("*") && name.matches(white) ||fullWhite.equals(name))){
+              if (!mExcludeSoList.contains(name)){
+                mExcludeSoList.add(name);
+              }
+            }
+          }
+
+
+        }
       }
     }
 

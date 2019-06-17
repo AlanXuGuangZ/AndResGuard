@@ -21,6 +21,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
+import java.util.ArrayList;
 
 /**
  * @author shwenzhang
@@ -35,6 +36,7 @@ public class Configuration {
   private static final String ATTR_ACTIVE = "isactive";
   private static final String PROPERTY_ISSUE = "property";
   private static final String WHITELIST_ISSUE = "whitelist";
+  private static final String SO_WHITELIST_ISSUE = "compressSoWhiteList";
   private static final String COMPRESS_ISSUE = "compress";
   private static final String MAPPING_ISSUE = "keepmapping";
   private static final String SIGN_ISSUE = "sign";
@@ -47,6 +49,7 @@ public class Configuration {
   private static final String ATTR_SIGNFILE_STOREPASS = "storepass";
   private static final String ATTR_SIGNFILE_ALIAS = "alias";
   public final HashMap<String, HashMap<String, HashSet<Pattern>>> mWhiteList;
+  public final ArrayList<String> mSoWhiteList = new ArrayList<String>();
   public final HashMap<String, HashMap<String, HashMap<String, String>>> mOldResMapping;
   public final HashMap<String, String> mOldFileMapping;
   public final HashSet<Pattern> mCompressPatterns;
@@ -61,6 +64,7 @@ public class Configuration {
   public File mSignatureFile;
   public File mOldMappingFile;
   public boolean mUseWhiteList;
+  public boolean mUseSoWhiteList;
   public boolean mUseCompress;
   public String mKeyPass;
   public String mStorePass;
@@ -209,6 +213,12 @@ public class Configuration {
               readWhiteListFromXml(node);
             }
             break;
+          case SO_WHITELIST_ISSUE:
+            mUseSoWhiteList = active;
+            if (mUseSoWhiteList) {
+              readSoWhiteListFromXml(node);
+            }
+            break;
           case COMPRESS_ISSUE:
             mUseCompress = active;
             if (mUseCompress) {
@@ -240,6 +250,34 @@ public class Configuration {
           System.exit(-1);
         }
       }
+    }
+  }
+
+
+  private void readSoWhiteListFromXml(Node node) throws IOException {
+    NodeList childNodes = node.getChildNodes();
+    if (childNodes.getLength() > 0) {
+      for (int j = 0, n = childNodes.getLength(); j < n; j++) {
+        Node child = childNodes.item(j);
+        if (child.getNodeType() == Node.ELEMENT_NODE) {
+          Element check = (Element) child;
+          String vaule = check.getAttribute(ATTR_VALUE);
+          addSoWhiteListPattern(vaule);
+        }
+      }
+    }
+  }
+
+  private void addSoWhiteListPattern(String item) {
+      if (mSoWhiteList.contains(item)){
+        return;
+      }else if (item.contains("*") && !item.contains(".*")){
+        System.err.println("Error, unsupported so white list config:" + item);
+        System.err.println("right config pattern is:\"" + item.substring(0,item.lastIndexOf(".")) + ".*\"");
+        System.exit(-1);
+      }
+      else{
+        mSoWhiteList.add(item);
     }
   }
 
@@ -296,6 +334,7 @@ public class Configuration {
     patterns.add(pattern);
     typeMap.put(typeName, patterns);
     System.out.println(String.format("convertToPatternString typeName %s format %s", typeName, name));
+
     mWhiteList.put(packageName, typeMap);
   }
 

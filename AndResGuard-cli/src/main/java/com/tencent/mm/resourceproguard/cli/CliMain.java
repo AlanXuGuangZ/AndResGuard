@@ -227,7 +227,7 @@ public class CliMain extends Main {
       if (signedFile != null) {
         ResourceRepackage repackage = new ResourceRepackage(config.mZipalignPath,
             config.m7zipPath,
-            new File(signedFile)
+            new File(signedFile), config
         );
         try {
           if (outputFile != null) {
