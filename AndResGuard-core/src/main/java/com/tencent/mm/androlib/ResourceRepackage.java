@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 
 public class ResourceRepackage {
@@ -130,7 +131,8 @@ public class ResourceRepackage {
       int method = compressData.get(name);
       if (method == TypedValue.ZIP_STORED) {
         storedFiles.add(name);
-      }else if (mUseSoWhiteList){
+      }
+      if (mUseSoWhiteList){
         for (String white:mSoWhiteList){
 
           if (name.endsWith(".so")){
@@ -142,13 +144,17 @@ public class ResourceRepackage {
               }
             }
           }
-
-
         }
       }
     }
 
-    addStoredFileIn7Zip(storedFiles);
+    // stored files update to mx0 level
+    addStoredFileIn7Zip(storedFiles, "-mx0");
+    // excluded files update to mx1 level
+    if (mUseSoWhiteList){
+      addStoredFileIn7Zip(mExcludeSoList, "-mx1");
+    }
+
     if (!mSignedWith7ZipApk.exists()) {
       throw new IOException(String.format(
           "[repackageWith7z]7z repackage signed apk fail,you must install 7z command line version first, linux: p7zip, window: 7za, path=%s",
@@ -163,6 +169,7 @@ public class ResourceRepackage {
     String path = outPath + File.separator + "*";
 
     String cmd = Utils.isPresent(sevenZipPath) ? sevenZipPath : TypedValue.COMMAND_7ZIP;
+    //极限压缩
     ProcessBuilder pb = new ProcessBuilder(cmd, "a", "-tzip", mSignedWith7ZipApk.getAbsolutePath(), path, "-mx9");
     Process pro = pb.start();
 
@@ -176,7 +183,7 @@ public class ResourceRepackage {
     pro.destroy();
   }
 
-  private void addStoredFileIn7Zip(ArrayList<String> storedFiles) throws IOException, InterruptedException {
+  private void addStoredFileIn7Zip(ArrayList<String> storedFiles, String level) throws IOException, InterruptedException {
     System.out.printf("[addStoredFileIn7Zip]rewrite the stored file into the 7zip, file count:%d\n",
         storedFiles.size()
     );
@@ -186,14 +193,14 @@ public class ResourceRepackage {
       FileOperation.copyFileUsingStream(new File(outputName + name), new File(storedParentName + name));
     }
     storedParentName = storedParentName + File.separator + "*";
-    //极限压缩
+
     String cmd = Utils.isPresent(sevenZipPath) ? sevenZipPath : TypedValue.COMMAND_7ZIP;
     ProcessBuilder pb = new ProcessBuilder(cmd,
         "a",
         "-tzip",
         mSignedWith7ZipApk.getAbsolutePath(),
         storedParentName,
-        "-mx0"
+        level
     );
     Process pro = pb.start();
 
